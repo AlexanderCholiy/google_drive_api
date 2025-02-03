@@ -8,6 +8,7 @@ from googleapiclient.http import MediaIoBaseDownload
 
 
 SCOPES: list[str] = [
+    'https://www.googleapis.com/auth/drive',
     'https://www.googleapis.com/auth/drive.readonly',
     'https://www.googleapis.com/auth/drive.metadata',
     'https://www.googleapis.com/auth/drive.metadata.readonly',

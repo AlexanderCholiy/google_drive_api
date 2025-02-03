@@ -10,17 +10,16 @@ def run_script(script_name):
     subprocess.run([sys.executable, script_name])
 
 
-def schedule_script(script_name, times):
-    for time_str in times:
-        schedule.every().day.at(time_str).do(
-            lambda script=script_name: threading.Thread(
-                target=run_script, args=(script,)
-            ).start()
-        )
+def schedule_script(script_name):
+    schedule.every(30).minutes.do(
+        lambda script=script_name: threading.Thread(
+            target=run_script, args=(script,)
+        ).start()
+    )
 
 
 def main():
-    schedule_script('run_add_poles_for_uptc.py', ['00:00', '12:00'])
+    schedule_script('run_add_poles_for_uptc.py')
 
     while True:
         schedule.run_pending()
