@@ -115,7 +115,7 @@ class GoogleDriveAPI:
                 status, done = downloader.next_chunk()
                 print(
                     f'Загрузка {file_save_path}: ' +
-                    f'{int(status.progress() * 100)}%.',
+                    f'{int(status.progress() * 100)}%',
                     end='\r'
                 )
             print()

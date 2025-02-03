@@ -3,6 +3,10 @@ import os
 
 from config.config import google_service
 from models.google_drive_api import GoogleDriveAPI
+from database.db_conn import sql_queries
+from database.requests.add_poles_for_claims_and_messages import (
+    add_poles_for_claims_and_messages
+)
 
 
 CURRENT_DIR: str = os.path.dirname(__file__)
@@ -10,8 +14,9 @@ SERVICE_ACCOUNT_FILE = os.path.join(
     CURRENT_DIR, 'config', 'uptc-449511-a4a6cb956463.json'
 )
 
+
 def update_process(current_percent: float):
-    print(f'Обновление данных в БД: {current_percent}%.', end='\r')
+    print(f'Обновление данных в БД: {current_percent}%', end='\r')
 
 
 def run_update_poles_for_claims():
@@ -33,7 +38,13 @@ def run_update_poles_for_claims():
         ):
             update_process(current_percent)
             continue
+
+        sql_queries(
+            add_poles_for_claims_and_messages(1000, claim_number, claim_pole)
+        )
+
         update_process(current_percent)
+
     print()
 
 
