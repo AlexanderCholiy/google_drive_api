@@ -16,8 +16,11 @@ def main():
         google_service.CREDENTIAL_EMAIL,
         SERVICE_ACCOUNT_FILE
     )
-    result = instance.read_available_files()
-    print(result)
+    print(instance.read_available_files())
+    df = instance.read_google_sheet(
+        '1sUR1rXN0TU3CcVMD6RnNxqXB7pzEBV74VvPNbojgDVI', 0
+    )
+    print(df)
 
 
 if __name__ == '__main__':
