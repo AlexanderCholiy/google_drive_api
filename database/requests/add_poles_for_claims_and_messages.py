@@ -5,7 +5,7 @@ def add_poles_for_claims_and_messages(
     INSERT INTO constants (
         claim_id, constant_type, constant_text, time_stamp
     )
-    SELECT
+    SELECT DISTINCT
         cl.id, {constant_type}, ts.ts_id, CURRENT_DATE
     FROM claims AS cl
     JOIN towerstore AS ts ON ts.ts_id = '{constant_text}'
@@ -22,7 +22,7 @@ def add_poles_for_claims_and_messages(
     INSERT INTO messages_constants (
         message_id, constant_type, constant_text, time_stamp
     )
-    SELECT
+    SELECT DISTINCT
         ms.message_id, {constant_type}, ts.ts_id, CURRENT_DATE
     FROM messages_constants AS ms
     JOIN towerstore AS ts ON ts.ts_id = '{constant_text}'
