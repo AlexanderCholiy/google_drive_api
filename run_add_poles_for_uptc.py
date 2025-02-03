@@ -71,8 +71,9 @@ def run_update_poles_for_claims():
 
         update_process(current_percent)
 
-    print()
-    write_df_to_excel(UPTC_FILE_PATH, df, 'Claims')
+    if len(diff_df) > 0:
+        print()
+        write_df_to_excel(UPTC_FILE_PATH, df, 'Claims')
 
 
 if __name__ == '__main__':

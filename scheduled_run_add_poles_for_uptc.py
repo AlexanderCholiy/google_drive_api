@@ -11,7 +11,7 @@ def run_script(script_name):
 
 
 def schedule_script(script_name):
-    schedule.every(30).minutes.do(
+    schedule.every(15).minutes.do(
         lambda script=script_name: threading.Thread(
             target=run_script, args=(script,)
         ).start()
