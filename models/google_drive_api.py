@@ -1,11 +1,10 @@
-import io
-
 import pandas as pd
 
 from pandas import DataFrame
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build, Resource
 from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaIoBaseDownload
 
 
 SCOPES: list[str] = [
@@ -15,6 +14,7 @@ SCOPES: list[str] = [
     'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/spreadsheets.readonly',
 ]
+
 MIME_TYPES: dict[str, str] = {
     'xlsx': (
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -87,11 +87,38 @@ class GoogleDriveAPI:
         self, file_id: str, file_save_path: str
     ):
         """
-        Скачивание google docs и google sheets с конвертированием в word или
-        excel.
+        Скачивание google docs и google sheets с конвертированием в word
+        (.docx) или excel (.xlsx).
+
+        Parameters:
+        ----------
+        file_id: ID файла (есть в ссылке на файл).
+        file_save_path: Путь к файлу.
         """
-        request = self.service.files().get_media(fileId=file_id)
-        print(request)
+        file_metadata = self.service.files().get(fileId=file_id).execute()
+        mime_type = file_metadata.get('mimeType')
+        if mime_type == 'application/vnd.google-apps.spreadsheet':
+            export_mime_type = MIME_TYPES['xlsx']
+        elif mime_type == 'application/vnd.google-apps.document':
+            export_mime_type = MIME_TYPES['xlsx']
+        else:
+            raise ValueError('Неверный формат файла.')
+
+        request = self.service.files().export_media(
+            fileId=file_id, mimeType=export_mime_type
+        )
+
+        with open(file_save_path, 'wb') as fh:
+            downloader = MediaIoBaseDownload(fh, request)
+            done = False
+            while done is False:
+                status, done = downloader.next_chunk()
+                print(
+                    f'Загрузка {file_save_path}: ' +
+                    f'{int(status.progress() * 100)}%.',
+                    end='\r'
+                )
+            print()
 
     def read_google_sheet(
         self, spreadsheet_id: str, sheet_name_or_index: str | int
@@ -109,40 +136,37 @@ class GoogleDriveAPI:
         -------
         pandas.DataFrame: Данные таблицы в формате DataFrame.
         """
-        try:
-            spreadsheet = self.sheets_service.spreadsheets().get(
-                spreadsheetId=spreadsheet_id
-            ).execute()
-            sheets = spreadsheet.get('sheets', [])
+        spreadsheet = self.sheets_service.spreadsheets().get(
+            spreadsheetId=spreadsheet_id
+        ).execute()
+        sheets = spreadsheet.get('sheets', [])
 
-            if isinstance(sheet_name_or_index, int):
-                if sheet_name_or_index < 0 or sheet_name_or_index >= len(
-                    sheets
-                ):
-                    print(
-                        f'Индекс листа - {sheet_name_or_index} вне диапазона.'
-                    )
-                    raise
-                sheet_name = sheets[sheet_name_or_index]['properties']['title']
-            else:
-                sheet_name = sheet_name_or_index
-
-            sheet_result = self.sheets_service.spreadsheets().values().get(
-                spreadsheetId=spreadsheet_id, range=sheet_name
-            ).execute()
-
-            if not sheet_result:
-                return pd.DataFrame()
-            try:
-                df = pd.DataFrame(sheet_result[1:], columns=sheet_result[0])
-                return df
-            except ValueError as error:
+        if isinstance(sheet_name_or_index, int):
+            if sheet_name_or_index < 0 or sheet_name_or_index >= len(
+                sheets
+            ):
                 print(
-                    'Не удалось преобразовать данные с Google Sheets ' +
-                    f'(лист {sheet_name}) в DataFrame:\n{error}'
+                    f'Индекс листа - {sheet_name_or_index} вне диапазона.'
                 )
                 raise
+            sheet_name = sheets[sheet_name_or_index]['properties']['title']
+        else:
+            sheet_name = sheet_name_or_index
 
-        except HttpError as error:
-            print(f'Ошибка при получении данных из Google Sheets:\n{error}')
+        sheet_result = self.sheets_service.spreadsheets().values().get(
+            spreadsheetId=spreadsheet_id, range=sheet_name
+        ).execute()
+
+        if 'values' not in sheet_result or not sheet_result['values']:
+            return pd.DataFrame()
+        try:
+            df = pd.DataFrame(
+                sheet_result['values'][1:], columns=sheet_result['values'][0]
+            )
+            return df
+        except ValueError as error:
+            print(
+                'Не удалось преобразовать данные с Google Sheets ' +
+                f'(лист {sheet_name}) в DataFrame:\n{error}'
+            )
             raise

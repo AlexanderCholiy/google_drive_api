@@ -10,22 +10,32 @@ SERVICE_ACCOUNT_FILE = os.path.join(
     CURRENT_DIR, 'config', 'uptc-449511-a4a6cb956463.json'
 )
 
-
-# def main():
-#     instance = GoogleDriveAPI(
-#         google_service.CREDENTIAL_EMAIL,
-#         os.path.join(SERVICE_ACCOUNT_FILE, 'tmp.csv')
-#     )
-#     # print(instance.read_available_files())
-#     instance.download_google_sheets_and_docs(
-#         '1sUR1rXN0TU3CcVMD6RnNxqXB7pzEBV74VvPNbojgDVI',
-#         CURRENT_DIR
-#     )
-#     # df = instance.read_google_sheet(
-#     #     '1sUR1rXN0TU3CcVMD6RnNxqXB7pzEBV74VvPNbojgDVI', 'claims'
-#     # )
-#     # print(df)
+def update_process(current_percent: float):
+    print(f'Обновление данных в БД: {current_percent}%.', end='\r')
 
 
-# if __name__ == '__main__':
-#     main()
+def run_update_poles_for_claims():
+    instance = GoogleDriveAPI(
+        google_service.CREDENTIAL_EMAIL,
+        SERVICE_ACCOUNT_FILE
+    )
+    df = instance.read_google_sheet(
+        '1sUR1rXN0TU3CcVMD6RnNxqXB7pzEBV74VvPNbojgDVI', 'Claims'
+    )
+    df = df.drop_duplicates().dropna()
+    df.reset_index(drop=True, inplace=True)
+    for row in df.itertuples(index=True):
+        claim_number = str(row.claim_number.strip())
+        claim_pole = str(row.claim_pole.strip())
+        current_percent: float = round(100*(row.Index + 1)/len(df), 2)
+        if not claim_number or not claim_pole or claim_number.lower() in (
+            '-', 'б/н'
+        ):
+            update_process(current_percent)
+            continue
+        update_process(current_percent)
+    print()
+
+
+if __name__ == '__main__':
+    run_update_poles_for_claims()
