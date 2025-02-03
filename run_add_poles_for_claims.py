@@ -11,17 +11,21 @@ SERVICE_ACCOUNT_FILE = os.path.join(
 )
 
 
-def main():
-    instance = GoogleDriveAPI(
-        google_service.CREDENTIAL_EMAIL,
-        SERVICE_ACCOUNT_FILE
-    )
-    print(instance.read_available_files())
-    df = instance.read_google_sheet(
-        '1sUR1rXN0TU3CcVMD6RnNxqXB7pzEBV74VvPNbojgDVI', 0
-    )
-    print(df)
+# def main():
+#     instance = GoogleDriveAPI(
+#         google_service.CREDENTIAL_EMAIL,
+#         os.path.join(SERVICE_ACCOUNT_FILE, 'tmp.csv')
+#     )
+#     # print(instance.read_available_files())
+#     instance.download_google_sheets_and_docs(
+#         '1sUR1rXN0TU3CcVMD6RnNxqXB7pzEBV74VvPNbojgDVI',
+#         CURRENT_DIR
+#     )
+#     # df = instance.read_google_sheet(
+#     #     '1sUR1rXN0TU3CcVMD6RnNxqXB7pzEBV74VvPNbojgDVI', 'claims'
+#     # )
+#     # print(df)
 
 
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     main()

@@ -1,17 +1,29 @@
-import httplib2
+import io
+
 import pandas as pd
 
 from pandas import DataFrame
-from google_auth_httplib2 import AuthorizedHttp
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build, Resource
 from googleapiclient.errors import HttpError
 
 
-DRIVE_READ: str = 'https://www.googleapis.com/auth/drive.readonly'
-DRIVE_MT_READ: str = 'https://www.googleapis.com/auth/drive.metadata.readonly'
-SHEETS_READ: str = 'https://www.googleapis.com/auth/spreadsheets.readonly'
-SHEETS_EDITOR: str = 'https://www.googleapis.com/auth/spreadsheets'
+SCOPES: list[str] = [
+    'https://www.googleapis.com/auth/drive.readonly',
+    'https://www.googleapis.com/auth/drive.metadata',
+    'https://www.googleapis.com/auth/drive.metadata.readonly',
+    'https://www.googleapis.com/auth/spreadsheets',
+    'https://www.googleapis.com/auth/spreadsheets.readonly',
+]
+MIME_TYPES: dict[str, str] = {
+    'xlsx': (
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ),
+    'docx': (
+        'application/vnd.openxmlformats-officedocument.wordprocessingml' +
+        '.document'
+    )
+}
 
 
 class GoogleDriveAPI:
@@ -26,13 +38,10 @@ class GoogleDriveAPI:
         credential_email: Имя сервисного аккаунта Google.
         file_key_path: Путь к JSON файлу с токеном доступа к сервисному
         аккаунту.
-        scopes: Список scopes для доступа к API.
         """
         self.service_account = credential_email
         self.file_key_path = file_key_path
-        self.credentials = self._get_credentials(
-            [DRIVE_READ, DRIVE_MT_READ, SHEETS_READ, SHEETS_EDITOR]
-        )
+        self.credentials = self._get_credentials(SCOPES)
 
         self.service: Resource = build(
             'drive', 'v3', credentials=self.credentials
@@ -50,11 +59,6 @@ class GoogleDriveAPI:
         except Exception as e:
             print(f'Ошибка при загрузке учетных данных:\n{e}')
             raise
-
-    def _build_service(self):
-        """Создание авторизованного HTTP-клиента с увеличенным тайм-аутом"""
-        http = AuthorizedHttp(self.credentials, http=httplib2.Http(timeout=60))
-        return build('sheets', 'v4', http=http)
 
     def read_available_files(self) -> list[dict[str, str]]:
         """Чтение доступных файлов из Google Drive."""
@@ -79,9 +83,18 @@ class GoogleDriveAPI:
             print(f"Ошибка при получении файлов:\n{error}")
             raise
 
+    def download_google_sheets_and_docs(
+        self, file_id: str, file_save_path: str
+    ):
+        """
+        Скачивание google docs и google sheets с конвертированием в word или
+        excel.
+        """
+        request = self.service.files().get_media(fileId=file_id)
+        print(request)
+
     def read_google_sheet(
-        self, spreadsheet_id: str, sheet_name_or_index: str | int,
-        chunk_size: int = 100
+        self, spreadsheet_id: str, sheet_name_or_index: str | int
     ) -> DataFrame:
         """
         Чтение данных из Google Sheets и преобразование их в DataFrame.
@@ -91,7 +104,6 @@ class GoogleDriveAPI:
         spreadsheet_id: ID таблицы Google Sheets (есть в ссылке документа).
         sheet_name_or_index: Имя листа для чтения (например, 'Sheet1') или его
         номер (например, 0).
-        chunk_size: Кол-во строк для считывания за раз с листа.
 
         Returns:
         -------
@@ -115,22 +127,21 @@ class GoogleDriveAPI:
             else:
                 sheet_name = sheet_name_or_index
 
-            print(sheet_name)
+            sheet_result = self.sheets_service.spreadsheets().values().get(
+                spreadsheetId=spreadsheet_id, range=sheet_name
+            ).execute()
 
-            result = self.sheets_service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range=sheet_name).execute()
-            return result
-
-            # if not values:
-            #     return pd.DataFrame()
-            # try:
-            #     df = pd.DataFrame(values[1:], columns=values[0])
-            #     return df
-            # except ValueError as error:
-            #     print(
-            #         'Не удалось преобразовать данные с Google Sheets ' +
-            #         f'(лист {sheet_name}) в DataFrame:\n{error}'
-            #     )
-            #     raise
+            if not sheet_result:
+                return pd.DataFrame()
+            try:
+                df = pd.DataFrame(sheet_result[1:], columns=sheet_result[0])
+                return df
+            except ValueError as error:
+                print(
+                    'Не удалось преобразовать данные с Google Sheets ' +
+                    f'(лист {sheet_name}) в DataFrame:\n{error}'
+                )
+                raise
 
         except HttpError as error:
             print(f'Ошибка при получении данных из Google Sheets:\n{error}')
